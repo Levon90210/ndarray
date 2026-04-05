@@ -100,6 +100,16 @@ public:
     size_t size() const;
     const std::vector<size_t> &shape() const;
     size_t shape(size_t i) const;
+
+    using iterator = typename std::vector<T>::iterator;
+    using const_iterator = typename std::vector<T>::const_iterator;
+
+    iterator begin();
+    iterator end();
+    const_iterator begin() const;
+    const_iterator end() const;
+    const_iterator cbegin() const;
+    const_iterator cend() const;
 };
 
 template<typename T>
@@ -499,6 +509,36 @@ size_t ndarray<T>::shape(size_t i) const {
         throw std::out_of_range("ndarray::shape: dim out of range");
     }
     return shape_[i];
+}
+
+template<typename T>
+typename ndarray<T>::iterator ndarray<T>::begin() {
+    return data_.begin() + offset_;
+}
+
+template<typename T>
+typename ndarray<T>::iterator ndarray<T>::end() {
+    return data_.begin() + offset_ + size();
+}
+
+template<typename T>
+typename ndarray<T>::const_iterator ndarray<T>::begin() const {
+    return data_.begin() + offset_;
+}
+
+template<typename T>
+typename ndarray<T>::const_iterator ndarray<T>::end() const {
+    return data_.begin() + offset_ + size();
+}
+
+template<typename T>
+typename ndarray<T>::const_iterator ndarray<T>::cbegin() const {
+    return data_.cbegin() + offset_;
+}
+
+template<typename T>
+typename ndarray<T>::const_iterator ndarray<T>::cend() const {
+    return data_.cbegin() + offset_ + size();
 }
 
 #endif // !NDARRAY_HPP
