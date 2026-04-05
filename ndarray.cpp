@@ -248,6 +248,26 @@ std::ostream &operator<<(std::ostream &os, const ndarray<T> &a) {
 }
 
 template<typename T>
+T ndarray<T>::sum() const {
+    return std::accumulate(data_.begin(), data_.end(), T{0});
+}
+
+template<typename T>
+T ndarray<T>::min() const {
+    return *std::min_element(data_.begin(), data_.end());
+}
+
+template<typename T>
+T ndarray<T>::max() const {
+    return *std::max_element(data_.begin(), data_.end());
+}
+
+template<typename T>
+double ndarray<T>::mean() const {
+    return static_cast<double>(sum()) / static_cast<double>(size());
+}
+
+template<typename T>
 size_t ndarray<T>::ndim() const {
     return shape_.size();
 }

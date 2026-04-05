@@ -60,6 +60,11 @@ public:
 
     friend std::ostream &operator<<(std::ostream &os, const ndarray &a);
 
+    T sum() const;
+    T min() const;
+    T max() const;
+    double mean() const;
+
     size_t ndim() const;
     size_t size() const;
     const std::vector<size_t> &shape() const;
