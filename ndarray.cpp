@@ -37,12 +37,21 @@ void ndarray<T>::iterate(const std::vector<size_t>& shape, std::function<void(co
         if (d < 0) break;
     }
 }
+
 template<typename T>
 template<typename Op>
 ndarray<T> &ndarray<T>::apply_inplace(const ndarray<T> &rhs, Op op) {
-    if (shape_ != rhs.shape_)
+    if (shape_ != rhs.shape_) {
         throw std::invalid_argument("ndarray: shape mismatch in element-wise operation");
+    }
     std::transform(data_.begin(), data_.end(), rhs.data_.begin(), data_.begin(), op);
+    return *this;
+}
+
+template<typename T>
+template<typename Op>
+ndarray<T> &ndarray<T>::apply_inplace(Op op) {
+    std::transform(data_.begin(), data_.end(), data_.begin(), op);
     return *this;
 }
 
@@ -51,6 +60,14 @@ template <typename Op>
 ndarray<T> ndarray<T>::apply(const ndarray& rhs, Op op) const {
     ndarray result = *this;
     result.apply_inplace(rhs, op);
+    return result;
+}
+
+template<typename T>
+template <typename Op>
+ndarray<T> ndarray<T>::apply(Op op) const {
+    ndarray result = *this;
+    result.apply_inplace(op);
     return result;
 }
 
@@ -221,6 +238,26 @@ ndarray<T> &ndarray<T>::operator/=(const ndarray &rhs) {
 }
 
 template<typename T>
+ndarray<T> &ndarray<T>::operator+=(T scalar) {
+    return apply_inplace([scalar](T x){ return x + scalar; });
+}
+
+template<typename T>
+ndarray<T> &ndarray<T>::operator-=(T scalar) {
+    return apply_inplace([scalar](T x){ return x - scalar; });
+}
+
+template<typename T>
+ndarray<T> &ndarray<T>::operator*=(T scalar) {
+    return apply_inplace([scalar](T x){ return x * scalar; });
+}
+
+template<typename T>
+ndarray<T> &ndarray<T>::operator/=(T scalar) {
+    return apply_inplace([scalar](T x){ return x / scalar; });
+}
+
+template<typename T>
 ndarray<T> ndarray<T>::operator+(const ndarray<T> &rhs) const {
     return apply(rhs, std::plus<T>{});
 }
@@ -239,6 +276,38 @@ template<typename T>
 ndarray<T> ndarray<T>::operator/(const ndarray<T> &rhs) const {
     return apply(rhs, std::divides<T>{});
 }
+
+template<typename T>
+ndarray<T> ndarray<T>::operator+(T scalar) const {
+    return apply([scalar](T x){ return x + scalar; });
+}
+
+template<typename T>
+ndarray<T> ndarray<T>::operator-(T scalar) const {
+    return apply([scalar](T x){ return x - scalar; });
+}
+
+template<typename T>
+ndarray<T> ndarray<T>::operator*(T scalar) const {
+    return apply([scalar](T x){ return x * scalar; });
+}
+
+template<typename T>
+ndarray<T> ndarray<T>::operator/(T scalar) const {
+    return apply([scalar](T x){ return x / scalar; });
+}
+
+template<typename T>
+ndarray<T> operator+(T s, const ndarray<T> &a) { return a + s; }
+
+template<typename T>
+ndarray<T> operator-(T s, const ndarray<T> &a) { return a - s; }
+
+template<typename T>
+ndarray<T> operator*(T s, const ndarray<T> &a) { return a * s; }
+
+template<typename T>
+ndarray<T> operator/(T s, const ndarray<T> &a) { return a / s; }
 
 template<typename T>
 std::ostream &operator<<(std::ostream &os, const ndarray<T> &a) {
