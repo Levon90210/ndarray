@@ -6,6 +6,7 @@
 #include <functional>
 #include <iostream>
 #include <numeric>
+#include <stdexcept>
 #include <string>
 #include <functional>
 #include <vector>
@@ -46,6 +47,7 @@ public:
     static ndarray zeros(const std::vector<size_t> &shape);
     static ndarray ones(const std::vector<size_t> &shape);
     static ndarray arange(T start, T stop, T step = T{1});
+    static ndarray where(const ndarray<bool> &condition, const ndarray &x, const ndarray &y);
 
     T &operator()(const std::vector<size_t> &idx);
     const T& operator()(const std::vector<size_t>& idx) const;
@@ -56,6 +58,10 @@ public:
     ndarray slice(size_t dim, size_t start, size_t stop) const;
     ndarray transpose() const;
     ndarray matmul(const ndarray &rhs) const;
+
+    ndarray flatten();
+    ndarray clip(T low, T high) const;
+    ndarray clone() const;
 
     ndarray &operator+=(const ndarray &rhs);
     ndarray &operator-=(const ndarray &rhs);
@@ -95,6 +101,11 @@ public:
     T min() const;
     T max() const;
     double mean() const;
+    bool any() const;
+    bool all() const;
+    size_t argmin() const;
+    size_t argmax() const;
+    T dot(const ndarray &rhs) const;
 
     size_t ndim() const;
     size_t size() const;
@@ -147,14 +158,14 @@ ndarray<T> &ndarray<T>::apply_inplace(const ndarray<T> &rhs, Op op) {
     if (shape_ != rhs.shape_) {
         throw std::invalid_argument("ndarray: shape mismatch in element-wise operation");
     }
-    std::transform(data_.begin(), data_.end(), rhs.data_.begin(), data_.begin(), op);
+    std::transform(begin(), end(), rhs.begin(), begin(), op);
     return *this;
 }
 
 template<typename T>
 template<typename Op>
 ndarray<T> &ndarray<T>::apply_inplace(Op op) {
-    std::transform(data_.begin(), data_.end(), data_.begin(), op);
+    std::transform(begin(), end(), begin(), op);
     return *this;
 }
 
@@ -180,8 +191,7 @@ ndarray<bool> ndarray<T>::compare(const ndarray &rhs, Op op) const {
     if (shape_ != rhs.shape_)
         throw std::invalid_argument("ndarray: shape mismatch in comparison");
     ndarray<bool> result(shape_);
-    std::transform(data_.begin(), data_.end(), rhs.data_.begin(),
-                   result.data_.begin(), op);
+    std::transform(begin(), end(), rhs.begin(), result.begin(), op);
     return result;
 }
 
@@ -246,6 +256,18 @@ ndarray<T> ndarray<T>::arange(T start, T stop, T step) {
 }
 
 template<typename T>
+ndarray<T> ndarray<T>::where(const ndarray<bool> &condition, const ndarray<T> &x, const ndarray<T> &y) {
+    if (!(condition.shape() == x.shape() && condition.shape() == y.shape())) {
+        throw std::invalid_argument("ndarray::where: all arrays must have the same shape");
+    }
+    ndarray result(condition.shape());
+    iterate(condition.shape(), [&condition, &x, &y, &result](const std::vector<size_t> &idx){
+        result(idx) = condition(idx) ? x(idx) : y(idx);    
+    });
+    return result;
+}
+
+template<typename T>
 ndarray<T> ndarray<T>::slice(size_t dim, size_t start, size_t stop) const {
     std::vector<size_t> new_shape = shape_;
     new_shape[dim] = stop - start;
@@ -293,6 +315,21 @@ ndarray<T> ndarray<T>::matmul(const ndarray<T> &rhs) const {
         }
     }
     return result;
+}
+
+template<typename T>
+ndarray<T> ndarray<T>::flatten() {
+    return reshape({size()});
+}
+
+template<typename T>
+ndarray<T> ndarray<T>::clip(T low, T high) const {
+    return apply([low, high](T x){ return std::clamp(x, low, high); });
+}
+
+template<typename T>
+ndarray<T> ndarray<T>::clone() const {
+    return *this;
 }
 
 template<typename T>
@@ -470,22 +507,53 @@ ndarray<bool> ndarray<T>::operator>=(const ndarray& rhs) const {
 
 template<typename T>
 T ndarray<T>::sum() const {
-    return std::accumulate(data_.begin(), data_.end(), T{0});
+    return std::accumulate(begin(), end(), T{0});
 }
 
 template<typename T>
 T ndarray<T>::min() const {
-    return *std::min_element(data_.begin(), data_.end());
+    return *std::min_element(begin(), end());
 }
 
 template<typename T>
 T ndarray<T>::max() const {
-    return *std::max_element(data_.begin(), data_.end());
+    return *std::max_element(begin(), end());
 }
 
 template<typename T>
 double ndarray<T>::mean() const {
     return static_cast<double>(sum()) / static_cast<double>(size());
+}
+
+template<typename T>
+bool ndarray<T>::any() const {
+    return std::any_of(begin(), end(), [](T x){ return static_cast<bool>(x); });
+}
+
+template<typename T>
+bool ndarray<T>::all() const {
+    return std::all_of(begin(), end(), [](T x){ return static_cast<bool>(x); });
+}
+
+template<typename T>
+size_t ndarray<T>::argmin() const {
+    return std::min_element(begin(), end()) - begin(); 
+}
+
+template<typename T>
+size_t ndarray<T>::argmax() const {
+    return std::max_element(begin(), end()) - begin(); 
+}
+
+template<typename T>
+T ndarray<T>::dot(const ndarray<T> &rhs) const {
+    if (ndim() != 1 || rhs.ndim() != 1) {
+        throw std::logic_error("ndarray::dot: both arrays must be 1D");
+    }
+    if (size() != rhs.size()) {
+        throw std::invalid_argument("ndarray::dot: size mismatch");
+    }
+    return std::inner_product(begin(), end(), rhs.begin(), T{0});
 }
 
 template<typename T>
