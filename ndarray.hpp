@@ -3,15 +3,11 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <endian.h>
 #include <functional>
 #include <iostream>
 #include <numeric>
-#include <stdexcept>
 #include <string>
-#include <cstddef>
 #include <functional>
-#include <ostream>
 #include <vector>
 
 template<typename T>
@@ -37,28 +33,29 @@ class ndarray {
     template<typename Op>
     ndarray apply(Op op) const;
     
+    template<typename Op>
+    ndarray<bool> compare(const ndarray &rhs, Op op) const;
+
     void print_recursive(std::ostream& os, std::vector<size_t>& idx, size_t dim) const;
 
 public:
     ndarray(const std::vector<size_t> &shape, T init = T{});
-
     ndarray(const std::vector<size_t> &shape, std::vector<T> data);
     
     static ndarray fill(const std::vector<size_t> &shape, T value);
     static ndarray zeros(const std::vector<size_t> &shape);
     static ndarray ones(const std::vector<size_t> &shape);
     static ndarray arange(T start, T stop, T step = T{1});
-    ndarray slice(size_t dim, size_t start, size_t stop) const;
-    ndarray transpose() const;
-    ndarray matmul(const ndarray &rhs) const;
 
     T &operator()(const std::vector<size_t> &idx);
     const T& operator()(const std::vector<size_t>& idx) const;
-
     template<typename... Idx>
     T &operator()(Idx... idx);
 
     ndarray &reshape(const std::vector<size_t> &new_shape);
+    ndarray slice(size_t dim, size_t start, size_t stop) const;
+    ndarray transpose() const;
+    ndarray matmul(const ndarray &rhs) const;
 
     ndarray &operator+=(const ndarray &rhs);
     ndarray &operator-=(const ndarray &rhs);
@@ -86,6 +83,13 @@ public:
     friend ndarray operator/(T scalar, const ndarray &a);
 
     friend std::ostream &operator<<(std::ostream &os, const ndarray &a);
+    
+    ndarray<bool> operator==(const ndarray &rhs) const;
+    ndarray<bool> operator!=(const ndarray &rhs) const;
+    ndarray<bool> operator<(const ndarray &rhs) const;
+    ndarray<bool> operator>(const ndarray &rhs) const;
+    ndarray<bool> operator<=(const ndarray &rhs) const;
+    ndarray<bool> operator>=(const ndarray &rhs) const;
 
     T sum() const;
     T min() const;
@@ -157,6 +161,17 @@ template <typename Op>
 ndarray<T> ndarray<T>::apply(Op op) const {
     ndarray result = *this;
     result.apply_inplace(op);
+    return result;
+}
+
+template<typename T>
+template<typename Op>
+ndarray<bool> ndarray<T>::compare(const ndarray &rhs, Op op) const {
+    if (shape_ != rhs.shape_)
+        throw std::invalid_argument("ndarray: shape mismatch in comparison");
+    ndarray<bool> result(shape_);
+    std::transform(data_.begin(), data_.end(), rhs.data_.begin(),
+                   result.data_.begin(), op);
     return result;
 }
 
@@ -411,6 +426,36 @@ std::ostream &operator<<(std::ostream &os, const ndarray<T> &a) {
     std::vector<size_t> idx(a.ndim(), 0);
     a.print_recursive(os, idx, 0);
     return os;
+}
+
+template<typename T>
+ndarray<bool> ndarray<T>::operator==(const ndarray& rhs) const {
+    return compare(rhs, std::equal_to<T>{});
+}
+
+template<typename T>
+ndarray<bool> ndarray<T>::operator!=(const ndarray& rhs) const {
+    return compare(rhs, std::not_equal_to<T>{});
+}
+
+template<typename T>
+ndarray<bool> ndarray<T>::operator<(const ndarray& rhs) const {
+    return compare(rhs, std::less<T>{});
+}
+
+template<typename T>
+ndarray<bool> ndarray<T>::operator>(const ndarray& rhs) const {
+    return compare(rhs, std::greater<T>{});
+}
+
+template<typename T>
+ndarray<bool> ndarray<T>::operator<=(const ndarray& rhs) const {
+    return compare(rhs, std::less_equal<T>{});
+}
+
+template<typename T>
+ndarray<bool> ndarray<T>::operator>=(const ndarray& rhs) const {
+    return compare(rhs, std::greater_equal<T>{});
 }
 
 template<typename T>
